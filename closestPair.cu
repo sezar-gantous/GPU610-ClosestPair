@@ -3,6 +3,13 @@
 #include <values.h>
 #include <math.h>
 #include <string.h>
+#include <cuda_runtime.h>
+
+int cudaAvailable(){
+    int nDevices;
+    cudaGetDeviceCount(&nDevices);
+    return nDevices;
+}
  
 typedef struct { double x, y; } point_t, *point;
  
@@ -16,7 +23,7 @@ inline int cmp_dbl(double a, double b)
 {
         return a < b ? -1 : a > b ? 1 : 0;
 }
- 
+
 int cmp_x(const void *a, const void *b) {
         return cmp_dbl( (*((point*)a))->x, (*((point*)b))->x );
 }
@@ -51,7 +58,7 @@ double closest(point* sx, int nx, point* sy, int ny, point *a, point *b)
  
         if (nx <= 8) return brute_force(sx, nx, a, b);
  
-        s_yy  = malloc(sizeof(point) * ny);
+        s_yy  = (point*)malloc(sizeof(point) * ny);
         mid = sx[nx/2]->x;
  
         /* adding points to the y-sorted list; if a point's x is less than mid,
@@ -112,9 +119,9 @@ int main()
         int i;
         point a, b;
  
-        point pts  = malloc(sizeof(point_t) * NP);
-        point* s_x = malloc(sizeof(point) * NP);
-        point* s_y = malloc(sizeof(point) * NP);
+        point pts  = (point) malloc(sizeof(point_t) * NP);
+        point* s_x = (point*)malloc(sizeof(point) * NP);
+        point* s_y = (point*)malloc(sizeof(point) * NP);
  
         for(i = 0; i < NP; i++) {
                 s_x[i] = pts + i;
