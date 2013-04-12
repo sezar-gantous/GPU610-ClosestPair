@@ -48,7 +48,17 @@ double brute_force(point* pts, int max_n, point *a, point *b)
         }
         return min_d;
 }
- 
+__global__ void cuda_brute_force(point* pts, int max_n,point_t *a,point_t *b){
+    int tid=blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if(tid==0){
+        a->x=1.0;
+        a->y=2.0;
+        b->x=3.0;
+        b->y=4.0;
+    }
+
+}
 double closest(point* sx, int nx, point* sy, int ny, point *a, point *b)
 {
         int left, right, i;
@@ -113,32 +123,73 @@ double closest(point* sx, int nx, point* sy, int ny, point *a, point *b)
         return min_d;
 }
  
-#define NP 1000000
+#define NP 100//1000000
 int main()
 {
-        int i;
-        point a, b;
- 
+        int i, cudaAble;
+        point a;
+        point b;
+        
+
         point pts  = (point) malloc(sizeof(point_t) * NP);
         point* s_x = (point*)malloc(sizeof(point) * NP);
         point* s_y = (point*)malloc(sizeof(point) * NP);
- 
-        for(i = 0; i < NP; i++) {
-                s_x[i] = pts + i;
+        
+        //device memory allocation
+        point_t* A;
+        point_t* B;
+        point* S_X;
+        dim3 dGrid((NP/512)+1);
+        dim3 dBlock(512);
+
+        point_t a1;
+        point_t b1;
+
+        cudaAble=cudaAvailable();
+        //silence errors
+
+        for(i = 0; i < NP; i++) {             
                 pts[i].x = 100 * (double) rand()/RAND_MAX;
                 pts[i].y = 100 * (double) rand()/RAND_MAX;
+                s_x[i] = pts + i;
         }
- 
-/*      printf("brute force: %g, ", sqrt(brute_force(s_x, NP, &a, &b)));
-        printf("between (%f,%f) and (%f,%f)\n", a->x, a->y, b->x, b->y);        */
+        
+        if(cudaAble){
+            cudaMalloc((void**)&A,1*sizeof(point_t));
+            cudaMalloc((void**)&B,1*sizeof(point_t));
+            cudaMalloc((void**)&S_X,NP*sizeof(point));
+            cudaMemcpy(S_X,s_x,NP*sizeof(point),cudaMemcpyHostToDevice);
+
+            printf("Using CUDA\n");
+
+            //test kernel call
+            cuda_brute_force<<<dGrid,dBlock>>>(S_X,NP,A,B);
+
+            cudaMemcpy(&a1,A,1*sizeof(point_t),cudaMemcpyDeviceToHost);
+            cudaMemcpy(&b1,B,1*sizeof(point_t),cudaMemcpyDeviceToHost);
+            printf("a=%f,%f and b=%f,%f \n",a1.x,a1.y,b1.x,b1.y);
+        }
+
+        printf("brute force: %g, ", sqrt(brute_force(s_x, NP, &a, &b)));
+        printf("between (%f,%f) and (%f,%f)\n", a->x, a->y, b->x, b->y);        
  
         memcpy(s_y, s_x, sizeof(point) * NP);
         qsort(s_x, NP, sizeof(point), cmp_x);
         qsort(s_y, NP, sizeof(point), cmp_y);
  
-        printf("min: %g; ", sqrt(closest(s_x, NP, s_y, NP, &a, &b)));
-        printf("point (%f,%f) and (%f,%f)\n", a->x, a->y, b->x, b->y);
+        /*printf("min: %g; ", sqrt(closest(s_x, NP, s_y, NP, &a, &b)));
+        printf("point (%f,%f) and (%f,%f)\n", a->x, a->y, b->x, b->y);*/
  
-        /* not freeing the memory, let OS deal with it.  Habit. */
+        //free device memory
+        if(cudaAble){
+            cudaFree(A);
+            cudaFree(B);
+            cudaFree(S_X);
+        }
+
+        /* not freeing the memory, let OS deal with it.  Habit. */ 
+        free(pts);
+        free(s_x);
+        free(s_y);
         return 0;
 }
