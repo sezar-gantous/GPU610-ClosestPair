@@ -48,7 +48,7 @@ double brute_force(point* pts, int max_n, point *a, point *b)
         }
         return min_d;
 }
-__global__ void cuda_brute_force(point* pts, int max_n,point_t *a,point_t *b){
+__global__ void cuda_brute_force(point_t* pts, int max_n,point_t *a,point_t *b){
     int tid=blockIdx.x * blockDim.x + threadIdx.x;
     
     if(tid==0){
@@ -138,27 +138,28 @@ int main()
         //device memory allocation
         point_t* A;
         point_t* B;
-        point* S_X;
+        point_t* S_X;
         dim3 dGrid((NP/512)+1);
         dim3 dBlock(512);
 
         point_t a1;
         point_t b1;
+        point_t* s_x1=(point_t*)malloc(sizeof(point_t) * NP);
 
         cudaAble=cudaAvailable();
-        //silence errors
 
         for(i = 0; i < NP; i++) {             
                 pts[i].x = 100 * (double) rand()/RAND_MAX;
                 pts[i].y = 100 * (double) rand()/RAND_MAX;
                 s_x[i] = pts + i;
+                s_x1[i]=pts[i];
         }
         
         if(cudaAble){
             cudaMalloc((void**)&A,1*sizeof(point_t));
             cudaMalloc((void**)&B,1*sizeof(point_t));
-            cudaMalloc((void**)&S_X,NP*sizeof(point));
-            cudaMemcpy(S_X,s_x,NP*sizeof(point),cudaMemcpyHostToDevice);
+            cudaMalloc((void**)&S_X,NP*sizeof(point_t));
+            cudaMemcpy(S_X,s_x1,NP*sizeof(point_t),cudaMemcpyHostToDevice);
 
             printf("Using CUDA\n");
 
@@ -173,11 +174,11 @@ int main()
         printf("brute force: %g, ", sqrt(brute_force(s_x, NP, &a, &b)));
         printf("between (%f,%f) and (%f,%f)\n", a->x, a->y, b->x, b->y);        
  
-        memcpy(s_y, s_x, sizeof(point) * NP);
+        /*memcpy(s_y, s_x, sizeof(point) * NP);
         qsort(s_x, NP, sizeof(point), cmp_x);
         qsort(s_y, NP, sizeof(point), cmp_y);
  
-        /*printf("min: %g; ", sqrt(closest(s_x, NP, s_y, NP, &a, &b)));
+        printf("min: %g; ", sqrt(closest(s_x, NP, s_y, NP, &a, &b)));
         printf("point (%f,%f) and (%f,%f)\n", a->x, a->y, b->x, b->y);*/
  
         //free device memory
